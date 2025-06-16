@@ -4,3 +4,12 @@ fastapi
 pydantic
 python-jose[cryptography]
 passlib[bcrypt]
+pydantic_settings==2.7.1
+loguru==0.7.2
+SQLAlchemy==2.0.35
+aiosqlite==0.20.0
+alembic==1.14.0
+httpx==0.28.1
+apscheduler==3.11.0
+pytz==2024.2
+python-telegram-bo
