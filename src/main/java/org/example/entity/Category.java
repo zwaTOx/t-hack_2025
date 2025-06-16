@@ -17,4 +17,14 @@ public class Category {
     @OneToOne
     @JoinColumn(name = "user_id", referencedColumnName = "id")
     private User userId;
+    @Override
+    public String toString() {
+        return "Category{" +
+                "id=" + id +
+                ", name='" + name + '\'' +
+                ", color='" + color + '\'' +
+                ", description='" + description + '\'' +
+                ", userId=" + userId +
+                '}';
+    }
 }
