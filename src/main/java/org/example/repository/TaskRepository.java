@@ -1,15 +1,20 @@
 package org.example.repository;
 
-import org.example.config.MySessionFactory;
+
 import org.example.entity.Task;
+import org.example.entity.User;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
+import org.hibernate.cfg.Configuration;
 import org.hibernate.query.Query;
 
 import java.util.List;
 
 public class TaskRepository implements Repository<Task> {
-    private final Session session = MySessionFactory.getFactory().openSession();
+    private final Session session = new Configuration()
+            .addAnnotatedClass(Task.class)
+            .addAnnotatedClass(User.class)
+            .buildSessionFactory().openSession();
     @Override
     public Task getById(Long id) {
         return session.get(Task.class, id);
