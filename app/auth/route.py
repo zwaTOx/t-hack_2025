@@ -5,24 +5,27 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from datetime import datetime, timedelta, timezone
 import random
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException, status, Request, Header
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Header, Response
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 import os
 from dotenv import load_dotenv
 
 from app.auth.code_model import Code
-from schemas import Token
-from database import Sessionlocal
+from app.models.user import User
+from app.auth.schemas import Token
 
-from app.tg_bot.telegram_bot import telegram_bot
+from app.database import Sessionlocal
+from app.repositories.user import UserRepository
+from app.tg_bot.telegram_bot_model import telegram_bot
 
 load_dotenv()
 SECRET_KEY = os.getenv('SECRET_KEY')
 ALGORITHM = os.getenv('ALGORITHM')
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv('ACCESS_TOKEN_EXPIRE_MINUTES'))
 
 router = APIRouter(
     tags=['Auth']
@@ -42,10 +45,10 @@ db_dependency = Annotated[Session, Depends(get_db)]
     
 @router.post('/code/send', status_code=status.HTTP_201_CREATED)
 async def create_password_restore_code(tg_id: str, db: Session = Depends(get_db)):
+    founded_user = UserRepository(db).get_user_by_tg(tg_id)
     existing_code = db.query(Code).filter(
-        Code.tg_id == tg_id,
+        Code.user_id == founded_user.id,
         Code.is_used == False,
-        # Code.created_at >= datetime.now(timezone.utc) - timedelta(minutes=5)
     ).first()
     
     # if existing_code:
@@ -56,7 +59,7 @@ async def create_password_restore_code(tg_id: str, db: Session = Depends(get_db)
     code = str(random.randint(100000, 999999))
     
     db_code = Code(
-        tg_id=tg_id,
+        user_id=founded_user.id,
         code=code,
     )
     
@@ -71,7 +74,7 @@ async def create_password_restore_code(tg_id: str, db: Session = Depends(get_db)
             detail=f"Ошибка при сохранении кода: {str(e)}"
         )
     try:
-        success = await telegram_bot.send_code(code, tg_id)
+        success = await telegram_bot.send_code(code, founded_user.chat_id, tg_id)
         if not success:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -105,18 +108,16 @@ async def auth_with_code(code: str, db: db_dependency):
     db_code.is_used = True
     db.commit()
     token_data = {
-        "tg_id": db_code.tg_id,
         "id": db_code.id,
-        "exp": datetime.now(timezone.utc) + timedelta(days=1)
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     }
     
     token = jwt.encode(token_data, SECRET_KEY, algorithm=ALGORITHM)
-    
     return {
         'access_token': token,
         'token_type': 'bearer'
     }
-    
+
 async def get_current_user(token: Annotated[str, Depends(oauth2_bearer)]):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=ALGORITHM)

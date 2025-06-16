@@ -6,8 +6,10 @@ from typing import Annotated
 from fastapi.middleware.cors import CORSMiddleware
 
 from database import engine, Sessionlocal, Base
-from route import get_current_user
-from route import router as auth_router
+
+from app.auth.route import get_current_user
+from app.auth.route import router as auth_router
+from app.routes.user import router as user_router
 
 app = FastAPI()
 Base.metadata.create_all(bind=engine)
@@ -31,6 +33,7 @@ db_dependency = Annotated[Session, Depends(get_db)]
 user_dependency = Annotated[dict, Depends(get_current_user)]
 
 app.include_router(auth_router)
+app.include_router(user_router)
 
 @app.get("/")
 async def get_user(user: user_dependency, db: db_dependency):

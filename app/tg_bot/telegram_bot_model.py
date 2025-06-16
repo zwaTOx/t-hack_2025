@@ -18,15 +18,14 @@ class TelegramBot:
         self.admin_chat_id = os.getenv('ADMIN_CHAT_ID')  
         self.bot = Bot(token=self.bot_token)
 
-    async def send_code(self, code: str, tg_id: str = None):
-        """Отправляет код восстановления в Telegram"""
+    async def send_code(self, code: str, chat_id: int, tg_id: str = None):
         try:
-            message = f"🔑 Код восстановления: {code}"
+            message = f"🔑 Код для входа: {code}"
             if tg_id:
                 message += f"\n👤 Для пользователя: {tg_id}"
             
             await self.bot.send_message(
-                chat_id=self.admin_chat_id,
+                chat_id=chat_id,
                 text=message
             )
             return True
