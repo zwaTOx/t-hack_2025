@@ -1,43 +1,43 @@
 package org.example.repository;
 
 import org.example.config.MySessionFactory;
-import org.example.entity.User;
+import org.example.entity.Category;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
-import org.hibernate.query.Query;
 
 import java.util.List;
 
-public class UserRepository implements Repository<User>{
+public class CategoryRepository implements Repository<Category>
+{
     private final Session session = MySessionFactory.getFactory().openSession();
     @Override
-    public User getById(Long id) {
-        return session.get(User.class, id);
+    public Category getById(Long id) {
+        return session.get(Category.class, id);
     }
 
     @Override
-    public List<User> getAll() {
-        return session.createQuery("from User", User.class).list();
+    public List<Category> getAll() {
+        return session.createQuery("from Category", Category.class).list();
     }
 
     @Override
-    public void update(User user) {
+    public void update(Category category) {
         Transaction transaction = session.beginTransaction();
-        session.merge(user);
+        session.merge(category);
         transaction.commit();
     }
 
     @Override
-    public void delete(User user) {
+    public void delete(Category category) {
         Transaction transaction = session.beginTransaction();
-        session.remove(user);
+        session.remove(category);
         transaction.commit();
     }
 
     @Override
-    public void save(User user) {
+    public void save(Category category) {
         Transaction transaction = session.beginTransaction();
-        session.persist(user);
+        session.persist(category);
         transaction.commit();
     }
 }
