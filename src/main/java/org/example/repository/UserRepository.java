@@ -35,4 +35,11 @@ public class UserRepository implements Repository<User>{
         session.remove(user);
         transaction.commit();
     }
+
+    @Override
+    public void save(User user) {
+        Transaction transaction = session.beginTransaction();
+        session.persist(user);
+        transaction.commit();
+    }
 }

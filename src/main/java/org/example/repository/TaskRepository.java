@@ -36,4 +36,16 @@ public class TaskRepository implements Repository<Task> {
         session.remove(task);
         transaction.commit();
     }
+
+    @Override
+    public void save(Task task) {
+        Transaction transaction = session.beginTransaction();
+        session.persist(task);
+        transaction.commit();
+    }
+    public List<Task> getByUserId(Long id) {
+        Query<Task> query = session.createQuery("from Task where userId.id = :param", Task.class);
+        query.setParameter(1, id);
+        return query.list();
+    }
 }
