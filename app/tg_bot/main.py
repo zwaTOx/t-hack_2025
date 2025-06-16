@@ -14,6 +14,8 @@ logging.basicConfig(
 )
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id 
+    logging.info(f"Chat ID: {chat_id}") 
     keyboard = [
         ['Создать задачу', 'Показать все задачи']
     ]
