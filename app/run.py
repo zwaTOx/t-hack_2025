@@ -14,8 +14,6 @@ def run_fastapi():
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)
 
 if __name__ == "__main__":
-
     bot_thread = Thread(target=run_bot, daemon=True)
     bot_thread.start()
-    
     run_fastapi()

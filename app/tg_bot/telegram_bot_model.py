@@ -1,10 +1,12 @@
 import logging
 from dotenv import load_dotenv
 import os
+import httpx
 from telegram import Bot
 from telegram.error import TelegramError
 
 load_dotenv()
+n8n_url = os.getenv('N8N_URL')
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -32,5 +34,74 @@ class TelegramBot:
         except TelegramError as e:
             logger.error(f"Ошибка отправки кода в Telegram: {e}")
             return False
-
+    
+    async def send_msg_on_n8n(self, chat_id: int, msg: str):
+        payload = {
+        "userId": chat_id,
+        "action": "sendMessage",
+        "chatInput": msg
+        }
+    
+        async with httpx.AsyncClient() as client:
+            try:
+                await self.bot.send_message(
+                        chat_id=chat_id,
+                        text=f"⏳ Обрабатываем ваше сообщение..."
+                    )
+                response = await client.post(
+                    n8n_url,
+                    json=payload,
+                    headers={"Content-Type": "application/json"},
+                    timeout=30.0
+                )
+                response_data = response.json() if response.content else None
+                match response.status_code:
+                    case 200:
+                        response_text = response.text[:200] + "..." if len(response.text) > 200 else response.text
+                        await self.bot.send_message(
+                            chat_id=chat_id,
+                            text=f"✅ Ответ сервера: {response_text}"
+                        )
+                        logger.info(
+                            f"Успешный запрос к N8N | ChatID: {chat_id} | "
+                            f"Status: {response.status_code} | Response: {response.text}"
+                        )
+                    case 422:
+                        await self.bot.send_message(
+                            chat_id=chat_id,
+                            text="Я тебя не совсем понял. Пожалуйста, уточни детали, пожалуйста."
+                        )
+                        # try:
+                        #     clarification = await self.wait_for_clarification(chat_id, timeout=300)
+                        #     if clarification:
+                        #         return await self.send_msg_on_n8n(chat_id, f'{msg} {clarification}', expecting_clarification=True)
+                        # except httpx.TimeoutException:
+                        #     await self.bot.send_message(
+                        #         chat_id=chat_id,
+                        #         text="Время для уточнения истекло. Попробуйте снова."
+                        #     )
+                    case _:
+                        error_message = f"HTTP Error {response.status_code}"
+                        logger.error(
+                            f"Ошибка запроса к N8N | ChatID: {chat_id} | \n"
+                            f"Status: {response.status_code} | Response: {response.text}\n",
+                            exc_info=True
+                        )
+                logger.info(f"N8N Status Code: {response.status_code}\nResponse: {response.text}")
+            except httpx.TimeoutException:
+                logger.info("N8N Request timed out")
+                await self.bot.send_message(
+                        chat_id=chat_id,
+                        text=f"Превышено время ожидания сообщения"
+                    )
+            except Exception as e:
+                logger.info(f"N8N An error occurred: {e}")
+                await self.bot.send_message(
+                    chat_id=chat_id,
+                    text="Неизвестная ошибка, повторите позже..."
+                )
+            except TelegramError as e:
+                logger.error(f"Ошибка отправки кода в Telegram: {e}")
+                return False
+            
 telegram_bot = TelegramBot()

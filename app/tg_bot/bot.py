@@ -8,29 +8,21 @@ from dotenv import load_dotenv
 from faster_whisper import WhisperModel
 from telegram import ReplyKeyboardMarkup, Update, Voice
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
-
-# Игнорирование предупреждений
-import warnings
-warnings.filterwarnings("ignore", message="pkg_resources is deprecated")
-warnings.filterwarnings("ignore", message="`huggingface_hub` cache-system uses symlinks")
-
+from app.tg_bot.telegram_bot_model import TelegramBot
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from app.repositories.user import User, UserRepository
 from app.database import Sessionlocal
 
-# Инициализация логгера
+load_dotenv()
+BOT_TOKEN = os.getenv('BOT_API_KEY')
 logger = logging.getLogger(__name__)
 
-# Инициализация модели Whisper
 try:
     model = WhisperModel("small", device="cpu", compute_type="int8")
     logger.info("Whisper model loaded successfully")
 except Exception as e:
     logger.error(f"Failed to load Whisper model: {e}")
     raise
-
-load_dotenv()
-BOT_TOKEN = os.getenv('BOT_API_KEY')
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -50,7 +42,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
     await context.bot.send_message(
         chat_id=update.effective_chat.id, 
-        text="Привет! Я готов к работе.", 
+        text="""🚀 Привет, я — твой AI-ассистент!
+Моя суперсила — превращать твои слова в задачи. Просто скажи:
+«Добавь “Выучить Python” в список целей»
+«Напомни выгулять кота в 18:00»
+Голосом работает тоже! Попробуй нажать 🎤 😉""", 
         reply_markup=reply_markup
     )
 
@@ -72,28 +68,29 @@ async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         voice = update.message.voice
         chat_id = update.effective_chat.id
 
-        # Скачивание голосового сообщения
         voice_file = await context.bot.get_file(voice.file_id)
         ogg_path = f"temp_{chat_id}.ogg"
         await voice_file.download_to_drive(ogg_path)
 
-        # Транскрибация с faster-whisper
         segments, info = model.transcribe(
             ogg_path,
-            language="ru",  # Принудительно указываем русский язык
+            language="ru",  
             beam_size=5,
-            vad_filter=True  # Фильтр голосовой активности
+            vad_filter=True  
         )
         
-        # Собираем полный текст
         texto = " ".join([segment.text for segment in segments])
         logger.info(f"Detected language: {info.language}, probability: {info.language_probability}")
         logger.info(f"Получена транскрипция: {texto}")
-
-        # Простой ответ с транскрипцией
+        
         await context.bot.send_message(
             chat_id=chat_id,
             text=f"🔊 Распознанный текст:\n{texto}"
+        )
+
+        await TelegramBot().send_msg_on_n8n(
+            chat_id=update.effective_chat.id,
+            msg=texto
         )
 
     except Exception as e:
@@ -102,7 +99,6 @@ async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "⚠️ Не удалось обработать голосовое сообщение"
         )
     finally:
-        # Удаление временного файла
         if ogg_path and os.path.exists(ogg_path):
             try:
                 os.remove(ogg_path)
@@ -116,9 +112,9 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == 'Показать все задачи':
         await view_tasks(update, context)
     else:
-        await context.bot.send_message(
+        await TelegramBot().send_msg_on_n8n(
             chat_id=update.effective_chat.id,
-            text=f"Вы написали: {text}"
+            msg=text
         )
 
 def start_bot():
@@ -127,7 +123,6 @@ def start_bot():
         asyncio.set_event_loop(loop)
         
         application = ApplicationBuilder().token(BOT_TOKEN).build()
-        
         application.add_handler(CommandHandler('start', start))
         application.add_handler(CommandHandler('task', task))
         application.add_handler(MessageHandler(filters.VOICE, voice_handler))
