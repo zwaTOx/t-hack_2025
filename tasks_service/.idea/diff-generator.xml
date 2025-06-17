@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="DiffGenerationConfig">
+    <option name="sourceDbValue" value="2eaff7d0-1686-48bb-ae89-f3a1a7b5f131" />
+    <option name="sourceDiffType" value="DB" />
+    <option name="sourceModelValue" value="tasks_service:tasks_service" />
+    <option name="targetDbValue" value="2eaff7d0-1686-48bb-ae89-f3a1a7b5f131" />
+  </component>
+</project>

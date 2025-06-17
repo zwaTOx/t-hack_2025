@@ -1,0 +1,20 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2025_06_17_users
+      author: Vlad Pashkov
+      changes:
+        - createTable:
+            tableName: users
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: username
+                  type: varchar(128)
+              - column:
+                  name: chat_id
+                  type: bigint

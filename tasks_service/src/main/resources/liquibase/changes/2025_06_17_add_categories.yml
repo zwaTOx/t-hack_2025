@@ -1,0 +1,31 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2025_06_17_categories
+      author: Vlad Pashkov
+      changes:
+        - createTable:
+            tableName: categories
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: name
+                  type: varchar(128)
+              - column:
+                  name: description
+                  type: varchar(128)
+              - column:
+                  name: user_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+                    foreignKeyName: fk_categories_user_id
+                    referencedTableName: users
+                    referencedColumnNames: id
+              - column:
+                  name: color
+                  type: varchar(128)

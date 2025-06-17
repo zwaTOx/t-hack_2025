@@ -1,0 +1,10 @@
+databaseChangeLog:
+  - include:
+      file: changes/2025_06_17_add_users.yml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/2025_06_17_add_categories.yml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/2025_06_17_add_tasks.yml
+      relativeToChangelogFile: true
