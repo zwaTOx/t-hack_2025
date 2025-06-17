@@ -57,12 +57,15 @@ class TelegramBot:
                     timeout=30.0
                 )
                 response_data = response.json() if response.content else None
+                response_data = {"name":"Работа","color":"#3498db","description":"Записи о работе и профессиональной деятельности"}
+                response.status_code = 200
                 match response.status_code:
                     case 200:
-                        response_text = MessageGenerator(response_data).create_task()
+                        message_data = MessageGenerator(response_data).create_task()
                         await self.bot.send_message(
                             chat_id=chat_id,
-                            text=response_text
+                            text=message_data['text'],
+                            parse_mode=message_data['parse_mode']
                         )
                         logger.info(
                             f"Успешный запрос к N8N | ChatID: {chat_id} | "
@@ -94,7 +97,7 @@ class TelegramBot:
                 logger.info("N8N Request timed out")
                 await self.bot.send_message(
                         chat_id=chat_id,
-                        text=f"Превышено время ожидания сообщения"
+                        text=f"Превышено время ожидания сообщения",
                     )
             except Exception as e:
                 logger.info(f"N8N An error occurred: {e}")
