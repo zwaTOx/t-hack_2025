@@ -1,6 +1,7 @@
 package org.example.repository;
 
 import org.example.config.MySessionFactory;
+import org.example.entity.Category;
 import org.example.entity.Task;
 import org.example.entity.User;
 import org.hibernate.Session;
@@ -14,6 +15,7 @@ public class UserRepository implements Repository<User>{
     private final Session session = new Configuration()
             .addAnnotatedClass(Task.class)
             .addAnnotatedClass(User.class)
+            .addAnnotatedClass(Category.class)
             .buildSessionFactory().openSession();
     @Override
     public User getById(Long id) {

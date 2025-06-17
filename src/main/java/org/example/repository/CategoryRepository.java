@@ -6,6 +6,7 @@ import org.example.entity.User;
 import org.hibernate.Session;
 import org.hibernate.Transaction;
 import org.hibernate.cfg.Configuration;
+import org.hibernate.query.Query;
 
 import java.util.List;
 
@@ -14,6 +15,7 @@ public class CategoryRepository implements Repository<Category>
     private final Session session = new Configuration()
             .addAnnotatedClass(Task.class)
             .addAnnotatedClass(User.class)
+            .addAnnotatedClass(Category.class)
             .buildSessionFactory().openSession();
     @Override
     public Category getById(Long id) {
@@ -30,7 +32,6 @@ public class CategoryRepository implements Repository<Category>
         Transaction transaction = session.beginTransaction();
         session.merge(category);
         transaction.commit();
-        session.flush();
     }
 
     @Override
@@ -38,7 +39,6 @@ public class CategoryRepository implements Repository<Category>
         Transaction transaction = session.beginTransaction();
         session.remove(category);
         transaction.commit();
-        session.flush();
     }
 
     @Override
@@ -46,6 +46,10 @@ public class CategoryRepository implements Repository<Category>
         Transaction transaction = session.beginTransaction();
         session.persist(category);
         transaction.commit();
-        session.flush();
+    }
+    public List<Category> getByUserId(Long id) {
+        Query<Category> query = session.createQuery("from Category where userId.id = :param", Category.class);
+        query.setParameter(1, id);
+        return query.list();
     }
 }
