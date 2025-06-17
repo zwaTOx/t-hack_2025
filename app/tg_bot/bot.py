@@ -1,39 +1,36 @@
 # app/bot.py
 import asyncio
+import logging
+import os
 from pathlib import Path
 import sys
-import time
-import logging
-from venv import logger
 from dotenv import load_dotenv
-from openai import OpenAI
+from faster_whisper import WhisperModel
 from telegram import ReplyKeyboardMarkup, Update, Voice
-import os
-import soundfile as sf 
-# from pydub import AudioSegment
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
-# from pydub.utils import which
+
+# Игнорирование предупреждений
+import warnings
+warnings.filterwarnings("ignore", message="pkg_resources is deprecated")
+warnings.filterwarnings("ignore", message="`huggingface_hub` cache-system uses symlinks")
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from app.repositories.user import User, UserRepository
 from app.database import Sessionlocal
 
-# ffmpeg_path = r"C:\Users\Пользователь\Downloads\ffmpeg-master-latest-win64-gpl\ffmpeg-master-latest-win64-gpl\bin"
-# AudioSegment.ffmpeg = os.path.join(ffmpeg_path, "ffmpeg.exe")
-# AudioSegment.ffprobe = os.path.join(ffmpeg_path, "ffprobe.exe")
+# Инициализация логгера
+logger = logging.getLogger(__name__)
+
+# Инициализация модели Whisper
+try:
+    model = WhisperModel("small", device="cpu", compute_type="int8")
+    logger.info("Whisper model loaded successfully")
+except Exception as e:
+    logger.error(f"Failed to load Whisper model: {e}")
+    raise
 
 load_dotenv()
 BOT_TOKEN = os.getenv('BOT_API_KEY')
-OPENAI_API_KEY=os.getenv('OPENAI_API_KEY')
-
-try:
-    client = OpenAI(
-        api_key=OPENAI_API_KEY, base_url="https://api.openai.com/v1", timeout=60.0
-    )
-    logger.info("OpenAI client initialized successfully")
-except Exception as e:
-    logger.error(f"Failed to initialize OpenAI client: {e}")
-    raise
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -49,122 +46,98 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             tg_id=f"@{tg_id}" if tg_id else str(update.effective_user.id),
             chat_id=chat_id
         )
-    keyboard = [
-        ['Создать задачу', 'Показать все задачи']
-    ]
+    keyboard = [['Создать задачу', 'Показать все задачи']]
     reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
-    await context.bot.send_message(chat_id=update.effective_chat.id, 
-        text="Hi! I am alive. Click a button to proceed.", 
-        reply_markup=reply_markup)
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id, 
+        text="Привет! Я готов к работе.", 
+        reply_markup=reply_markup
+    )
 
 async def task(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(chat_id=update.effective_chat.id, 
-        text="You have initiated a task creation. Please provide task details.")
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="Опишите задачу текстом."
+    )
 
 async def view_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(chat_id=update.effective_chat.id, 
-        text="Here are all your tasks: ...")  
-
-async def convert_ogg_to_mp3(ogg_path: str, mp3_path: str):
-    """Конвертация OGG в MP3 с использованием soundfile"""
-    try:
-        # Чтение OGG файла
-        data, samplerate = sf.read(ogg_path)
-        
-        # Запись в MP3 (soundfile использует libsndfile, который поддерживает MP3 через дополнительные библиотеки)
-        sf.write(mp3_path, data, samplerate, format='MP3')
-        
-        return True
-    except Exception as e:
-        logger.error(f"Ошибка конвертации аудио: {e}")
-        return False
+    await context.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text="Список задач:\n1. Пример задачи 1\n2. Пример задачи 2"
+    )
 
 async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Инициализируем переменные для временных файлов
-    ogg_path = mp3_path = tts_path = None
-    
+    ogg_path = None
     try:
-        voice: Voice = update.message.voice
+        voice = update.message.voice
         chat_id = update.effective_chat.id
 
         # Скачивание голосового сообщения
-        ogg_file = await context.bot.get_file(voice.file_id)
+        voice_file = await context.bot.get_file(voice.file_id)
         ogg_path = f"temp_{chat_id}.ogg"
-        await ogg_file.download_to_drive(ogg_path)
+        await voice_file.download_to_drive(ogg_path)
 
-        # Конвертация в MP3
-        mp3_path = f"temp_{chat_id}.mp3"
-        if not await convert_ogg_to_mp3(ogg_path, mp3_path):
-            raise Exception("Не удалось конвертировать аудио")
-
-        # Транскрибация
-        with open(mp3_path, "rb") as audio_file:
-            transcript = client.audio.transcriptions.create(
-                model="whisper-1",
-                file=audio_file,
-            )
-            texto = transcript.text
-            logger.info(f"Получена транскрипция: {texto}")
-
-        # Генерация ответа
-        completion = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": texto}],
+        # Транскрибация с faster-whisper
+        segments, info = model.transcribe(
+            ogg_path,
+            language="ru",  # Принудительно указываем русский язык
+            beam_size=5,
+            vad_filter=True  # Фильтр голосовой активности
         )
-        response_text = completion.choices[0].message.content
-        logger.info(f"Сгенерированный ответ: {response_text}")
-
-        # Создание голосового ответа
-        tts_response = client.audio.speech.create(
-            model="tts-1",
-            voice="alloy",
-            input=response_text,
-        )
-
-        # Сохранение ответа
-        tts_path = f"resp_{chat_id}.mp3"
-        tts_response.stream_to_file(tts_path)
         
-        # Отправка голосового ответа
-        with open(tts_path, "rb") as resp:
-            await context.bot.send_voice(chat_id=chat_id, voice=resp)
+        # Собираем полный текст
+        texto = " ".join([segment.text for segment in segments])
+        logger.info(f"Detected language: {info.language}, probability: {info.language_probability}")
+        logger.info(f"Получена транскрипция: {texto}")
+
+        # Простой ответ с транскрипцией
+        await context.bot.send_message(
+            chat_id=chat_id,
+            text=f"🔊 Распознанный текст:\n{texto}"
+        )
 
     except Exception as e:
         logger.error(f"Ошибка в обработке голоса: {e}")
         await update.message.reply_text(
-            "Извините, произошла ошибка при обработке вашего аудио."
+            "⚠️ Не удалось обработать голосовое сообщение"
         )
     finally:
-        for path in [p for p in [ogg_path, mp3_path, tts_path] if p is not None]:
+        # Удаление временного файла
+        if ogg_path and os.path.exists(ogg_path):
             try:
-                if os.path.exists(path):
-                    os.remove(path)
+                os.remove(ogg_path)
             except Exception as e:
-                logger.warning(f"Не удалось удалить файл {path}: {e}")
+                logger.warning(f"Не удалось удалить файл {ogg_path}: {e}")
 
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.message.text == 'Создать задачу':
+    text = update.message.text
+    if text == 'Создать задачу':
         await task(update, context)
-    elif update.message.text == 'Показать все задачи':
+    elif text == 'Показать все задачи':
         await view_tasks(update, context)
     else:
-        await context.bot.send_message(chat_id=update.effective_chat.id, text=update.message.text)
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=f"Вы написали: {text}"
+        )
 
 def start_bot():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    
-    application = ApplicationBuilder().token(BOT_TOKEN).build()
-    
-    start_handler = CommandHandler('start', start)
-    task_handler = CommandHandler('task', task)
-    echo_handler = MessageHandler(filters.TEXT & (~filters.COMMAND), echo)
-    application.add_handler(start_handler)
-    application.add_handler(task_handler)
-    application.add_handler(MessageHandler(filters.VOICE, voice_handler))
-    application.add_handler(echo_handler)
-    
     try:
-        loop.run_until_complete(application.run_polling())
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        application = ApplicationBuilder().token(BOT_TOKEN).build()
+        
+        application.add_handler(CommandHandler('start', start))
+        application.add_handler(CommandHandler('task', task))
+        application.add_handler(MessageHandler(filters.VOICE, voice_handler))
+        application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), echo))
+        
+        application.run_polling()
+    except Exception as e:
+        logger.error(f"Error in bot: {e}")
     finally:
         loop.close()
+
+if __name__ == '__main__':
+    start_bot()
