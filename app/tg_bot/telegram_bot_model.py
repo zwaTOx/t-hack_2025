@@ -5,6 +5,8 @@ import httpx
 from telegram import Bot
 from telegram.error import TelegramError
 
+from app.tg_bot.message_generator import MessageGenerator
+
 load_dotenv()
 n8n_url = os.getenv('N8N_URL')
 
@@ -41,7 +43,7 @@ class TelegramBot:
         "action": "sendMessage",
         "chatInput": msg
         }
-    
+        logger.info(f"N8N Отправлено сообщение: {msg}")
         async with httpx.AsyncClient() as client:
             try:
                 await self.bot.send_message(
@@ -57,10 +59,10 @@ class TelegramBot:
                 response_data = response.json() if response.content else None
                 match response.status_code:
                     case 200:
-                        response_text = response.text[:200] + "..." if len(response.text) > 200 else response.text
+                        response_text = MessageGenerator(response_data).create_task()
                         await self.bot.send_message(
                             chat_id=chat_id,
-                            text=f"✅ Ответ сервера: {response_text}"
+                            text=response_text
                         )
                         logger.info(
                             f"Успешный запрос к N8N | ChatID: {chat_id} | "
@@ -69,7 +71,7 @@ class TelegramBot:
                     case 422:
                         await self.bot.send_message(
                             chat_id=chat_id,
-                            text="Я тебя не совсем понял. Пожалуйста, уточни детали, пожалуйста."
+                            text="Я тебя не совсем понял. Пожалуйста, уточни детали твоего запроса."
                         )
                         # try:
                         #     clarification = await self.wait_for_clarification(chat_id, timeout=300)

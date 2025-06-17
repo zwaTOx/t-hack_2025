@@ -90,7 +90,7 @@ async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await TelegramBot().send_msg_on_n8n(
             chat_id=update.effective_chat.id,
-            msg=texto
+            msg=texto+f' [{update.message.date}]'
         )
 
     except Exception as e:
@@ -114,7 +114,7 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await TelegramBot().send_msg_on_n8n(
             chat_id=update.effective_chat.id,
-            msg=text
+            msg=text+f' [{update.message.date}]'
         )
 
 def start_bot():
