@@ -57,11 +57,25 @@ class TelegramBot:
                     timeout=30.0
                 )
                 response_data = response.json() if response.content else None
-                response_data = {"name":"Работа","color":"#3498db","description":"Записи о работе и профессиональной деятельности"}
+                # response_data = {
+                #     "name":"Встреча с Васей",
+                #     "category_name": "Работа",
+                #     "start_time": '2025-06-17 09:59:55+00:00',
+                #     "deadline": '2025-06-17 18:59:55+00:00',
+                #     "description":"Обсудить важные документы",
+                #     "type": "task"
+                #     }
+                
+                # response_data = {
+                #     "name":"Работа",
+                #     "color":"#3498db",
+                #     "description":"Записи о работе и профессиональной деятельности",
+                #     "type": "category"
+                #     }
                 response.status_code = 200
                 match response.status_code:
                     case 200:
-                        message_data = MessageGenerator(response_data).create_task()
+                        message_data = MessageGenerator(response_data).generate_answer()
                         await self.bot.send_message(
                             chat_id=chat_id,
                             text=message_data['text'],

@@ -9,7 +9,12 @@ class MessageGenerator():
         """Экранирует спецсимволы для HTML"""
         return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
-    def get_color_type(self, hex_code: str) -> str:
+    def _format_time(self, time_str):
+        if not time_str:
+            return None
+        return time_str.split('+')[0] if '+' in time_str else time_str
+
+    def _get_color_type(self, hex_code: str) -> str:
         if not hex_code or len(hex_code) != 7 or not hex_code.startswith('#'):
             return "неизвестный цвет"
         
@@ -70,27 +75,42 @@ class MessageGenerator():
             return "розовый"
         return "смешанный цвет"
 
+    def generate_answer(self):
+        type = self.data.get('type')
+        match type:
+            case "task":
+                return self.create_task()
+            case "category":
+                return self.create_category()
+
     def create_task(self) -> dict:
         task_name = self._escape_html(self.data.get('name', 'Без названия'))
-        color = self.data.get('color', '')
         description = self._escape_html(self.data.get('description', ''))
+        start_time = self.data.get('start_time')
         deadline = self.data.get('deadline')
-
-        if color:
-            color_display = (
-                f"\n\n🎨 <b>Цвет: {self.get_color_type(color)}</b>\n"
-            )
-
+        category = self.data.get('category_name')
         message_parts = [
-            f"🎯 <b>Задача «{task_name}» успешно создана!</b>",
-            color_display
+            f"🎯 <b>Задача «{task_name}» успешно создана!\n</b>"
         ]
-
+        if category:
+            message_parts.append(f"\n✏️ <b>Категория:</b> <i>{category}</i>\n")
         if description:
-            message_parts.append(f"\n📄 <b>Описание:</b>\n<i>{description}</i>")
+            message_parts.append(f"\n📄 <b>Описание:</b>\n<i>{description}</i>\n")
 
+        time_display = []
+        if start_time:
+            formatted_start = self._format_time(start_time)
+            time_display.append(f"🟢 <b>Начало:</b> <code>{formatted_start}</code>\n")
         if deadline:
-            message_parts.append(f"\n\n⏰ <b>Срок выполнения:</b>\n<code>{deadline}</code>")
+            formatted_deadline = self._format_time(deadline)
+            if time_display:
+                time_display.append(f"🔴 <b>Конец:</b> <code>{formatted_deadline}</code>\n")
+            else:
+                time_display.append(f"\n🔴 <b>Дедлайн:</b> <code>{formatted_deadline}</code>\n")
+            
+        if len(time_display) == 2:
+            message_parts.append("\n⏳ <b>Временные метки:\n</b>")
+        message_parts.extend(time_display)
 
         return {
             'text': ''.join(message_parts),
@@ -98,7 +118,20 @@ class MessageGenerator():
         }
     
     def create_category(self) -> str:
-        pass
+        color = self.data.get('color', '')
+        cat_name = self.data.get('name')
+        description = self.data.get('description')
+        message_parts = [
+            f"🎯 <b>Категория «{cat_name}» успешно создана!</b>\n"
+        ]
+        if description:
+            message_parts.append(f"\n📄 <b>Описание:</b>\n<i>{description}</i>\n")
+        if color:
+            message_parts.append(f"\n🎨 <b>Цвет: {self._get_color_type(color)}</b>\n")
 
+        return {
+            'text': ''.join(message_parts),
+            'parse_mode': self.parse_mode
+        }
     def tasks_view(self) -> str:
         pass
