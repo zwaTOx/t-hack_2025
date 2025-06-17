@@ -6,9 +6,10 @@ import time
 import logging
 from venv import logger
 from dotenv import load_dotenv
-# from openai import OpenAI
+from openai import OpenAI
 from telegram import ReplyKeyboardMarkup, Update, Voice
 import os
+import soundfile as sf 
 # from pydub import AudioSegment
 from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
 # from pydub.utils import which
@@ -25,14 +26,14 @@ load_dotenv()
 BOT_TOKEN = os.getenv('BOT_API_KEY')
 OPENAI_API_KEY=os.getenv('OPENAI_API_KEY')
 
-# try:
-#     client = OpenAI(
-#         api_key=OPENAI_API_KEY, base_url="https://api.openai.com/v1", timeout=60.0
-#     )
-#     logger.info("OpenAI client initialized successfully")
-# except Exception as e:
-#     logger.error(f"Failed to initialize OpenAI client: {e}")
-#     raise
+try:
+    client = OpenAI(
+        api_key=OPENAI_API_KEY, base_url="https://api.openai.com/v1", timeout=60.0
+    )
+    logger.info("OpenAI client initialized successfully")
+except Exception as e:
+    logger.error(f"Failed to initialize OpenAI client: {e}")
+    raise
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -64,61 +65,82 @@ async def view_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, 
         text="Here are all your tasks: ...")  
 
-# async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-#     try:
-#         voice: Voice = update.message.voice
-#         chat_id = update.effective_chat.id
+async def convert_ogg_to_mp3(ogg_path: str, mp3_path: str):
+    """Конвертация OGG в MP3 с использованием soundfile"""
+    try:
+        # Чтение OGG файла
+        data, samplerate = sf.read(ogg_path)
+        
+        # Запись в MP3 (soundfile использует libsndfile, который поддерживает MP3 через дополнительные библиотеки)
+        sf.write(mp3_path, data, samplerate, format='MP3')
+        
+        return True
+    except Exception as e:
+        logger.error(f"Ошибка конвертации аудио: {e}")
+        return False
 
-#         ogg_file = await context.bot.get_file(voice.file_id)
-#         ogg_path = f"temp_{chat_id}.ogg"
-#         await ogg_file.download_to_drive(ogg_path)
+async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Инициализируем переменные для временных файлов
+    ogg_path = mp3_path = tts_path = None
+    
+    try:
+        voice: Voice = update.message.voice
+        chat_id = update.effective_chat.id
 
-#         mp3_path = f"data/voice_msgs/temp_{chat_id}.mp3"
-#         audio = AudioSegment.from_file(ogg_path, format="ogg")
-#         audio.export(mp3_path, format="mp3")
+        # Скачивание голосового сообщения
+        ogg_file = await context.bot.get_file(voice.file_id)
+        ogg_path = f"temp_{chat_id}.ogg"
+        await ogg_file.download_to_drive(ogg_path)
 
-#         with open(mp3_path, "rb") as audio_file:
-#             transcript = client.audio.transcriptions.create(
-#                 model="whisper-1",  
-#                 file=audio_file,
-#             )
-#             texto = transcript.text
-#             logger.info(f"Получена транскрипция: {texto}")
+        # Конвертация в MP3
+        mp3_path = f"temp_{chat_id}.mp3"
+        if not await convert_ogg_to_mp3(ogg_path, mp3_path):
+            raise Exception("Не удалось конвертировать аудио")
 
-#         completion = client.chat.completions.create(
-#             model="gpt-3.5-turbo",  
-#             messages=[{"role": "user", "content": texto}],
-#         )
-#         response_text = completion.choices[0].message.content
-#         logger.info(f"Сгенерированный ответ: {response_text}")
+        # Транскрибация
+        with open(mp3_path, "rb") as audio_file:
+            transcript = client.audio.transcriptions.create(
+                model="whisper-1",
+                file=audio_file,
+            )
+            texto = transcript.text
+            logger.info(f"Получена транскрипция: {texto}")
 
-#         tts_response = client.audio.speech.create(
-#             model="tts-1",  
-#             voice="alloy",  
-#             input=response_text,
-#         )
+        # Генерация ответа
+        completion = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": texto}],
+        )
+        response_text = completion.choices[0].message.content
+        logger.info(f"Сгенерированный ответ: {response_text}")
 
-#         tts_path = f"resp_{chat_id}.mp3"
-#         tts_response.stream_to_file(tts_path)
+        # Создание голосового ответа
+        tts_response = client.audio.speech.create(
+            model="tts-1",
+            voice="alloy",
+            input=response_text,
+        )
 
-#         ogg_resp_path = f"resp_{chat_id}.ogg"
-#         audio_resp = AudioSegment.from_file(tts_path, format="mp3")
-#         audio_resp.export(ogg_resp_path, format="ogg")
+        # Сохранение ответа
+        tts_path = f"resp_{chat_id}.mp3"
+        tts_response.stream_to_file(tts_path)
+        
+        # Отправка голосового ответа
+        with open(tts_path, "rb") as resp:
+            await context.bot.send_voice(chat_id=chat_id, voice=resp)
 
-#         with open(ogg_resp_path, "rb") as resp:
-#             await context.bot.send_voice(chat_id=chat_id, voice=resp)
-
-#         for path in [ogg_path, mp3_path, tts_path, ogg_resp_path]:
-#             try:
-#                 os.remove(path)
-#             except OSError as e:
-#                 logger.warning(f"Не удалось удалить файл {path}: {e}")
-
-#     except Exception as e:
-#         logger.error(f"Ошибка в обработке голоса: {e}")
-#         await update.message.reply_text(
-#             "Извините, произошла ошибка при обработке вашего аудио."
-#         )
+    except Exception as e:
+        logger.error(f"Ошибка в обработке голоса: {e}")
+        await update.message.reply_text(
+            "Извините, произошла ошибка при обработке вашего аудио."
+        )
+    finally:
+        for path in [p for p in [ogg_path, mp3_path, tts_path] if p is not None]:
+            try:
+                if os.path.exists(path):
+                    os.remove(path)
+            except Exception as e:
+                logger.warning(f"Не удалось удалить файл {path}: {e}")
 
 async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.text == 'Создать задачу':
@@ -139,7 +161,7 @@ def start_bot():
     echo_handler = MessageHandler(filters.TEXT & (~filters.COMMAND), echo)
     application.add_handler(start_handler)
     application.add_handler(task_handler)
-    # application.add_handler(MessageHandler(filters.VOICE, voice_handler))
+    application.add_handler(MessageHandler(filters.VOICE, voice_handler))
     application.add_handler(echo_handler)
     
     try:
