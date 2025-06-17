@@ -4,7 +4,8 @@ import os
 import httpx
 from telegram import Bot
 from telegram.error import TelegramError
-
+from app.tg_bot.schemas.category import CategorySchema
+from app.tg_bot.schemas.task import TaskSchema
 from app.tg_bot.message_generator import MessageGenerator
 
 load_dotenv()
@@ -22,6 +23,15 @@ class TelegramBot:
         self.admin_chat_id = os.getenv('ADMIN_CHAT_ID')  
         self.bot = Bot(token=self.bot_token)
 
+    def detect_schema(self, data: dict) -> 'str':
+        try:
+            return type(TaskSchema(**data)).__name__
+        except ValueError:
+            try:
+                return type(CategorySchema(**data)).__name__
+            except ValueError as e:
+                raise ValueError(f"Данные не соответствуют ни одной схеме: {e}")
+
     async def send_code(self, code: str, chat_id: int, tg_id: str = None):
         try:
             message = f"🔑 Код для входа: {code}"
@@ -37,6 +47,9 @@ class TelegramBot:
             logger.error(f"Ошибка отправки кода в Telegram: {e}")
             return False
     
+    async def send_msg(self, chat_id: int, message: str, ):
+        pass
+
     async def send_msg_on_n8n(self, chat_id: int, msg: str):
         payload = {
         "userId": chat_id,
@@ -63,19 +76,17 @@ class TelegramBot:
                 #     "start_time": '2025-06-17 09:59:55+00:00',
                 #     "deadline": '2025-06-17 18:59:55+00:00',
                 #     "description":"Обсудить важные документы",
-                #     "type": "task"
                 #     }
                 
                 # response_data = {
                 #     "name":"Работа",
                 #     "color":"#3498db",
                 #     "description":"Записи о работе и профессиональной деятельности",
-                #     "type": "category"
                 #     }
-                response.status_code = 200
+                # response.status_code = 200
                 match response.status_code:
                     case 200:
-                        message_data = MessageGenerator(response_data).generate_answer()
+                        message_data = MessageGenerator(response_data).generate_answer(self.detect_schema(response_data))
                         await self.bot.send_message(
                             chat_id=chat_id,
                             text=message_data['text'],

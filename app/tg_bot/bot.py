@@ -1,5 +1,6 @@
 # app/bot.py
 import asyncio
+import json
 import logging
 import os
 from pathlib import Path
@@ -7,12 +8,21 @@ import sys
 from dotenv import load_dotenv
 from faster_whisper import WhisperModel
 from telegram import ReplyKeyboardMarkup, Update, Voice
-from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, MessageHandler, filters
+from telegram.ext import (
+    ApplicationBuilder, 
+    ContextTypes, 
+    CommandHandler, 
+    MessageHandler, 
+    filters,
+    CallbackQueryHandler  # Добавлен импорт CallbackQueryHandler
+)
+from app.tg_bot.message_generator import MessageGenerator
 from app.tg_bot.telegram_bot_model import TelegramBot
+from app.tg_bot.views.task import TaskView
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from app.repositories.user import User, UserRepository
 from app.database import Sessionlocal
-
+from app.tg_bot.tasks_data import response_data
 load_dotenv()
 BOT_TOKEN = os.getenv('BOT_API_KEY')
 logger = logging.getLogger(__name__)
@@ -54,12 +64,6 @@ async def task(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(
         chat_id=update.effective_chat.id,
         text="Опишите задачу текстом."
-    )
-
-async def view_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await context.bot.send_message(
-        chat_id=update.effective_chat.id,
-        text="Список задач:\n1. Пример задачи 1\n2. Пример задачи 2"
     )
 
 async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -110,12 +114,33 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if text == 'Создать задачу':
         await task(update, context)
     elif text == 'Показать все задачи':
-        await view_tasks(update, context)
+        response = TaskView(response_data).tasks_view()
+        await context.bot.send_message(
+            chat_id=update.effective_chat.id,
+            text=response['text'],
+            parse_mode=response['parse_mode'],
+            reply_markup=response['reply_markup']
+        )
     else:
         await TelegramBot().send_msg_on_n8n(
             chat_id=update.effective_chat.id,
             msg=text+f' [{update.message.date}]'
         )
+
+async def handle_task_pagination(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    
+    if query.data.startswith("task_page_"):
+        page = int(query.data.split("_")[-1])
+        response = TaskView(response_data, page=page).tasks_view()
+        await query.edit_message_text(
+            text=response['text'],
+            parse_mode=response['parse_mode'],
+            reply_markup=response['reply_markup']
+        )
+    elif query.data == "close_tasks":
+        await query.delete_message()
 
 def start_bot():
     try:
@@ -124,6 +149,7 @@ def start_bot():
         
         application = ApplicationBuilder().token(BOT_TOKEN).build()
         application.add_handler(CommandHandler('start', start))
+        application.add_handler(CallbackQueryHandler(handle_task_pagination, pattern="^(task_page_|close_tasks)"))
         application.add_handler(CommandHandler('task', task))
         application.add_handler(MessageHandler(filters.VOICE, voice_handler))
         application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), echo))

@@ -1,3 +1,5 @@
+from datetime import datetime
+from pydantic import BaseModel
 from telegram.constants import ParseMode
 
 class MessageGenerator():
@@ -75,12 +77,11 @@ class MessageGenerator():
             return "розовый"
         return "смешанный цвет"
 
-    def generate_answer(self):
-        type = self.data.get('type')
-        match type:
-            case "task":
+    def generate_answer(self, schema):
+        match schema:
+            case "TaskSchema":
                 return self.create_task()
-            case "category":
+            case "CategorySchema":
                 return self.create_category()
 
     def create_task(self) -> dict:
@@ -133,5 +134,3 @@ class MessageGenerator():
             'text': ''.join(message_parts),
             'parse_mode': self.parse_mode
         }
-    def tasks_view(self) -> str:
-        pass
