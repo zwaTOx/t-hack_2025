@@ -77,7 +77,7 @@ class TelegramBot:
                 #     "deadline": '2025-06-17 18:59:55+00:00',
                 #     "description":"Обсудить важные документы",
                 #     }
-                
+
                 # response_data = {
                 #     "name":"Работа",
                 #     "color":"#3498db",
