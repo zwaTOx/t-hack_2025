@@ -23,12 +23,13 @@ public class Task {
     private LocalDateTime createdTime;
     @Column(name = "updated_time")
     private LocalDateTime updatedTime;
-    @Column(name = "category")
-    private String category;
+    @OneToOne
+    @JoinColumn(name = "category", referencedColumnName = "id")
+    private Category category;
     public Task() {
 
     }
-    public Task(Long id, String name, String description, User userId, LocalDateTime deadline, LocalDateTime createdTime, LocalDateTime updatedTime, String category) {
+    public Task(Long id, String name, String description, User userId, LocalDateTime deadline, LocalDateTime createdTime, LocalDateTime updatedTime, Category category) {
         this.id = id;
         this.name = name;
         this.description = description;
@@ -109,11 +110,11 @@ public class Task {
         this.updatedTime = updatedTime;
     }
 
-    public String getCategory() {
+    public Category getCategory() {
         return category;
     }
 
-    public void setCategory(String category) {
+    public void setCategory(Category category) {
         this.category = category;
     }
 }
