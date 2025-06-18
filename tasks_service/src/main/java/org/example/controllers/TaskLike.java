@@ -2,6 +2,7 @@ package org.example.controllers;
 
 import org.example.mapper.JsonTaskMapper;
 import org.example.repository.TaskRepository;
+import org.example.repository.UserRepository;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -17,12 +18,13 @@ import java.util.Base64;
 public class TaskLike extends HttpServlet {
     private final TaskRepository taskRepository = new TaskRepository();
     private final JsonTaskMapper mapper = new JsonTaskMapper();
+    private final UserRepository userRepository = new UserRepository();
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         String pattern = req.getHeader("pattern");
         byte[] decodedBytes = Base64.getDecoder().decode(pattern);
         pattern = new String(decodedBytes, StandardCharsets.UTF_8);
-        String json = mapper.createJson(taskRepository.getNameLike(pattern, Long.valueOf(req.getHeader("user_id"))));
+        String json = mapper.createJson(taskRepository.getNameLike(pattern, userRepository.getIdByUserName(req.getHeader("user_id"))));
         System.out.println(json);
         resp.setContentType("application/json");
         resp.setCharacterEncoding("UTF-8");
