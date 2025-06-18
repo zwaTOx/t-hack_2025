@@ -1,0 +1,10 @@
+databaseChangeLog:
+  - changeSet:
+      id: 2025_06_18_add_cat_seq
+      author: Vlad Pashkov
+      changes:
+        - createSequence:
+            startValue: 1
+            incrementBy: 50
+            dataType: bigint
+            sequenceName: categories_seq

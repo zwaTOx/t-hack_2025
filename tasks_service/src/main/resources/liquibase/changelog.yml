@@ -8,3 +8,12 @@ databaseChangeLog:
   - include:
       file: changes/2025_06_17_add_tasks.yml
       relativeToChangelogFile: true
+  - include:
+      file: changes/2025_06_18_add_tasks_seq.yml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/2025_06_18_add_cat_seq.yml
+      relativeToChangelogFile: true
+  - include:
+      file: changes/2025_06_18_add_users_seq.yml
+      relativeToChangelogFile: true
