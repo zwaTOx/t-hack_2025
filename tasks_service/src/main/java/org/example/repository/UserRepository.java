@@ -47,4 +47,9 @@ public class UserRepository implements Repository<User>{
         session.persist(user);
         transaction.commit();
     }
+    public Long getIdByUserName(String username) {
+        Query<Long> query = session.createQuery("select id from User where username = :param", Long.class);
+        query.setParameter("param", username);
+        return query.getSingleResult();
+    }
 }

@@ -22,7 +22,7 @@ public class CategoryServlet extends HttpServlet {
     private final JsonCategoryMapper mapper = new JsonCategoryMapper();
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        String json = mapper.createJson(repository.getByUserId(Long.valueOf(req.getHeader("user_id"))));
+        String json = mapper.createJson(repository.getByUserId(userRepository.getIdByUserName(req.getHeader("user_id"))));
         System.out.println(json);
         resp.setContentType("application/json");
         resp.setCharacterEncoding("UTF-8");
@@ -35,7 +35,7 @@ public class CategoryServlet extends HttpServlet {
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         Category category;
         category = mapper.getEntity(req.getInputStream());
-        category.setUserId(userRepository.getById(Long.valueOf(req.getHeader("user_id"))));
+        category.setUserId(userRepository.getById(userRepository.getIdByUserName(req.getHeader("user_id"))));
         repository.save(category);
     }
 
@@ -44,6 +44,6 @@ public class CategoryServlet extends HttpServlet {
         String name = req.getHeader("name");
         byte[] decodedBytes = Base64.getDecoder().decode(name);
         name = new String(decodedBytes, StandardCharsets.UTF_8);
-        repository.deleteByName(name, Long.valueOf(req.getHeader("user_id")));
+        repository.deleteByName(name, userRepository.getIdByUserName(req.getHeader("user_id")));
     }
 }
