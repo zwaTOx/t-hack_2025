@@ -11,7 +11,7 @@ import org.example.mapper.JsonMapper;
 import org.example.mapper.JsonUserMapper;
 import org.example.repository.UserRepository;
 
-@WebServlet(name = "user_servlet", value = "user_servlet")
+@WebServlet(name = "user_servlet", value = "/user_servlet")
 public class UserServlet extends HttpServlet {
     private final UserRepository repository = new UserRepository();
     JsonMapper<User> mapper = new JsonUserMapper();
