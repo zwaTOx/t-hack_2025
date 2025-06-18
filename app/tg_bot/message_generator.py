@@ -1,6 +1,11 @@
 from datetime import datetime
+import os
+import httpx
 from pydantic import BaseModel
 from telegram.constants import ParseMode
+from dotenv import load_dotenv
+load_dotenv()
+bck_url = os.getenv('bck_url')
 
 class MessageGenerator():
     def __init__(self, json_data: dict):
@@ -11,10 +16,23 @@ class MessageGenerator():
         """Экранирует спецсимволы для HTML"""
         return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
-    def _format_time(self, time_str):
-        if not time_str:
+    def _format_time(self, time_value):
+        if not time_value:
             return None
-        return time_str.split('+')[0] if '+' in time_str else time_str
+        
+        # Если время в секундах (Unix timestamp)
+        if isinstance(time_value, (int, float)):
+            return datetime.fromtimestamp(time_value).strftime('%Y-%m-%d %H:%M:%S')
+        
+        # Если время в миллисекундах
+        if isinstance(time_value, (int, float)) and time_value > 1e12:
+            return datetime.fromtimestamp(time_value/1000).strftime('%Y-%m-%d %H:%M:%S')
+        
+        # Если уже строка с временем и часовым поясом (+00:00)
+        if isinstance(time_value, str) and '+' in time_value:
+            return time_value.split('+')[0]
+        
+        return time_value
 
     def _get_color_type(self, hex_code: str) -> str:
         if not hex_code or len(hex_code) != 7 or not hex_code.startswith('#'):
@@ -77,12 +95,39 @@ class MessageGenerator():
             return "розовый"
         return "смешанный цвет"
 
-    def generate_answer(self, schema):
+    async def generate_answer(self, schema, chat_id, username):
         match schema:
             case "TaskSchema":
+                # task_data = {
+                #     'id': None,
+                #     'name': schema.get('name'),  
+                #     'userId': str(username) if username else None,
+                #     'createdTime': None,
+                #     'updatedTime': task_data.get('start_time'),
+                #     'description': schema.get('description'),  
+                #     'deadline': self._safe_isoformat(schema.get('deadline')),
+                #     'category': None,
+                # }
+                # if not task_data['deadline']:
+                #     return {
+                #         "status": "error", 
+                #         "message": "Invalid deadline format"
+                #     }
+                # import ipdb; ipdb.set_trace()
+                # async with httpx.AsyncClient() as client:
+                #     response = await client.post(
+                #         f"{bck_url}/task_servlet",
+                #         json=task_data,
+                #         headers={"Content-Type": "application/json"},
+                #         timeout=30.0
+                #     )
                 return self.create_task()
             case "CategorySchema":
                 return self.create_category()
+            case "CategoryCreate":
+                pass
+            case "TaskCreate":
+                pass
 
     def create_task(self) -> dict:
         task_name = self._escape_html(self.data.get('name', 'Без названия'))

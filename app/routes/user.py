@@ -62,3 +62,7 @@ async def send_message(msg: str, token: str, db: db_dependency):
         )
         response_data = response.json() if response.content else None
     return response_data
+
+@router.post('/notyfication')
+async def send_notification(user_id: int, ):
+    pass

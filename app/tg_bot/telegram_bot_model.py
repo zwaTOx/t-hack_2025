@@ -2,11 +2,14 @@ import logging
 from dotenv import load_dotenv
 import os
 import httpx
+import json
 from telegram import Bot
 from telegram.error import TelegramError
 from app.tg_bot.schemas.category import CategorySchema
+from app.tg_bot.schemas.category_create import CategoryCreate
 from app.tg_bot.schemas.task import TaskSchema
 from app.tg_bot.message_generator import MessageGenerator
+from app.tg_bot.schemas.task_create import TaskCreate
 
 load_dotenv()
 n8n_url = os.getenv('N8N_URL')
@@ -30,7 +33,13 @@ class TelegramBot:
             try:
                 return type(CategorySchema(**data)).__name__
             except ValueError as e:
-                raise ValueError(f"Данные не соответствуют ни одной схеме: {e}")
+                try: 
+                    return type(CategoryCreate(**data)).__name__
+                except ValueError as e:
+                    try: 
+                        return type(TaskCreate(**data)).__name__
+                    except ValueError as e:
+                        raise
 
     async def send_code(self, code: str, chat_id: int, tg_id: str = None):
         try:
@@ -50,7 +59,10 @@ class TelegramBot:
     async def send_msg(self, chat_id: int, message: str, ):
         pass
 
-    async def send_msg_on_n8n(self, chat_id: int, msg: str):
+    async def post_task(seld, username: str):
+        pass
+
+    async def send_msg_on_n8n(self, chat_id: int, msg: str, username: str):
         payload = {
         "userId": chat_id,
         "action": "sendMessage",
@@ -67,27 +79,38 @@ class TelegramBot:
                     n8n_url,
                     json=payload,
                     headers={"Content-Type": "application/json"},
-                    timeout=300.0
+                    timeout=500.0
                 )
-                response_data = response.json() if response.content else None
-                response_data = response[0]['output']
-                # response_data = {
-                #     "name":"Встреча с Васей",
-                #     "category_name": "Работа",
-                #     "start_time": '2025-06-17 09:59:55+00:00',
-                #     "deadline": '2025-06-17 18:59:55+00:00',
-                #     "description":"Обсудить важные документы",
-                #     }
+                # import ipdb; ipdb.set_trace()
+                logger.info(f'{response.json()}')
+                response_data = response.json()['output']
+                logger.info(f'{response_data}')
+                if not response_data:
+                    raise ValueError("Поле 'output' отсутствует или пустое")
+                
+                response_data = {
+                    "name":"Встреча с Васей",
+                    "category_name": "Работа",
+                    "start_time": '2025-06-17 09:59:55+00:00',
+                    "deadline": '2025-06-17 18:59:55+00:00',
+                    "description":"Обсудить важные документы",
+                    }
 
                 # response_data = {
                 #     "name":"Работа",
                 #     "color":"#3498db",
                 #     "description":"Записи о работе и профессиональной деятельности",
                 #     }
-                # response.status_code = 200
+                # response_data = {'output': {'name': 'встреча с Васей', 'description': 'встреча с Васей', 'deadline': 1717049100}}
+                response.status_code = 200
                 match response.status_code:
-                    case 200:
-                        message_data = MessageGenerator(response_data).generate_answer(self.detect_schema(response_data))
+                    case 200: 
+                        message_data = await MessageGenerator(response_data).generate_answer(
+                            response_data, 
+                            chat_id=chat_id, 
+                            username=username
+                            )
+                        # message_data = MessageGenerator(response_data).generate_answer(self.detect_schema(response_data))
                         await self.bot.send_message(
                             chat_id=chat_id,
                             text=message_data['text'],

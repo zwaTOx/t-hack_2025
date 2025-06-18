@@ -4,7 +4,7 @@ from typing import Optional
 
 class TaskSchema(BaseModel):
     name: str
-    category_name: Optional[str] 
+    category_name: str | None = Field(default='')
     start_time: Optional[str]
-    deadline: Optional[str] 
+    deadline: int | None 
     description: Optional[str] 

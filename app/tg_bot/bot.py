@@ -107,7 +107,8 @@ async def voice_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await TelegramBot().send_msg_on_n8n(
             chat_id=update.effective_chat.id,
-            msg=texto+f' [{update.message.date}]'
+            msg=texto+f' [{update.message.date}]',
+            username = update.effective_user.username 
         )
 
     except Exception as e:
@@ -144,7 +145,8 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         await TelegramBot().send_msg_on_n8n(
             chat_id=update.effective_chat.id,
-            msg=text+f' [{update.message.date}]'
+            msg=text+f' [{update.message.date}]',
+            username=update.effective_user.username  
         )
 
 async def handle_task_pagination(update: Update, context: ContextTypes.DEFAULT_TYPE):
