@@ -50,6 +50,6 @@ public class UserRepository implements Repository<User>{
     public Long getIdByUserName(String username) {
         Query<Long> query = session.createQuery("select id from User where username = :param", Long.class);
         query.setParameter("param", username);
-        return query.getSingleResult();
+        return query.list().get(0);
     }
 }
