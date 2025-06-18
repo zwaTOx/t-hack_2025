@@ -7,6 +7,7 @@ from pathlib import Path
 import sys
 from dotenv import load_dotenv
 from faster_whisper import WhisperModel
+import httpx
 from telegram import ReplyKeyboardMarkup, Update, Voice
 from telegram.ext import (
     ApplicationBuilder, 
@@ -14,7 +15,7 @@ from telegram.ext import (
     CommandHandler, 
     MessageHandler, 
     filters,
-    CallbackQueryHandler  # Добавлен импорт CallbackQueryHandler
+    CallbackQueryHandler  
 )
 from app.tg_bot.message_generator import MessageGenerator
 from app.tg_bot.telegram_bot_model import TelegramBot
@@ -26,6 +27,7 @@ from app.tg_bot.tasks_data import response_data
 load_dotenv()
 BOT_TOKEN = os.getenv('BOT_API_KEY')
 logger = logging.getLogger(__name__)
+bck_url = os.getenv('bck_url')
 
 try:
     model = WhisperModel("small", device="cpu", compute_type="int8")
@@ -48,6 +50,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             tg_id=f"@{tg_id}" if tg_id else str(update.effective_user.id),
             chat_id=chat_id
         )
+    async with httpx.AsyncClient() as client:
+            response_data = await client.post(
+                bck_url+'/user_servlet',
+                json={
+                    'id': None, 
+                    'username': update.effective_user.username, 
+                    'chatId': chat_id
+                    },
+                headers={"Content-Type": "application/json"},
+                timeout=30.0
+            )
     keyboard = [['Создать задачу', 'Показать все задачи']]
     reply_markup = ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
     await context.bot.send_message(
@@ -114,7 +127,14 @@ async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if text == 'Создать задачу':
         await task(update, context)
     elif text == 'Показать все задачи':
-        response = TaskView(response_data).tasks_view()
+        # logger.info(f'{type(update.effective_user.username)} {update.effective_user.username}')
+        async with httpx.AsyncClient() as client:
+            response_data = await client.get(
+                bck_url+'/task_servlet',
+                headers={"Content-Type": "application/json", 'user_id': update.effective_user.username},
+                timeout=30.0
+            )
+        response = TaskView(response_data.json()).tasks_view()
         await context.bot.send_message(
             chat_id=update.effective_chat.id,
             text=response['text'],
@@ -133,7 +153,13 @@ async def handle_task_pagination(update: Update, context: ContextTypes.DEFAULT_T
     
     if query.data.startswith("task_page_"):
         page = int(query.data.split("_")[-1])
-        response = TaskView(response_data, page=page).tasks_view()
+        async with httpx.AsyncClient() as client:
+            response_data = await client.get(
+                bck_url+'/task_servlet',
+                headers={"Content-Type": "application/json", 'user_id': update.effective_user.username},
+                timeout=30.0
+            )
+        response = TaskView(response_data.json(), page=page).tasks_view()
         await query.edit_message_text(
             text=response['text'],
             parse_mode=response['parse_mode'],

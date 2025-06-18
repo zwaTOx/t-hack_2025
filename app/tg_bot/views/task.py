@@ -1,4 +1,6 @@
 from datetime import datetime
+import logging
+logger = logging.getLogger(__name__)
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 
 class TaskView:
@@ -7,7 +9,7 @@ class TaskView:
         self.page = page
         self.per_page = per_page
         self.parse_mode = 'HTML'
-        self.total_tasks = len(data.get('data', []))
+        self.total_tasks = len(data) if type(data) == list else 1
         self.total_pages = (self.total_tasks + per_page - 1) // per_page
 
     def _format_datetime(self, dt_str: str) -> str:
@@ -19,18 +21,23 @@ class TaskView:
             return "не указано"
 
     def tasks_view(self) -> dict:
-        tasks = self.data.get('data', [])
+        tasks = self.data
         start = self.page * self.per_page
         end = start + self.per_page
-        page_tasks = tasks[start:end]
-
-        if not page_tasks:
+        logger.info(f'{type(tasks)}')
+        if not tasks:
             return {
                 'text': "📭 <b>Задачи не найдены</b>",
                 'parse_mode': self.parse_mode,
                 'reply_markup': None
             }
-
+        # if type(tasks is not list):
+        #     return {
+        #         'text': f"Ошибка: Неверный формат",
+        #         'parse_mode': self.parse_mode,
+        #         'reply_markup': None
+        #     }
+        page_tasks = tasks[start:end]
         message = [f"📋 <b>Задачи (стр. {self.page + 1}/{self.total_pages}):</b>\n"]
         
         for i, task in enumerate(page_tasks, start + 1):

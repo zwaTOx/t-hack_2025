@@ -96,7 +96,7 @@ async def auth_with_code(code: str, db: db_dependency):
     db_code = db.query(Code).filter(
         Code.code == code,
         Code.is_used == False,
-        Code.created_at >= datetime.now(timezone.utc) - timedelta(minutes=5)
+        Code.created_at >= datetime.now(timezone.utc) - timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     ).first()
     
     if not db_code:
@@ -108,7 +108,7 @@ async def auth_with_code(code: str, db: db_dependency):
     db_code.is_used = True
     db.commit()
     token_data = {
-        "id": db_code.id,
+        "id": db_code.user_id,
         "exp": datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     }
     

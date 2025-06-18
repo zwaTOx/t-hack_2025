@@ -1,5 +1,4 @@
-response_data = {
-    "data": [
+response_data = [
         {
             "name":"Встреча с Васей",
             "category_name": "Работа",
@@ -78,4 +77,3 @@ response_data = {
             "description":"Обсудить важные документы",
         },
     ]
-}

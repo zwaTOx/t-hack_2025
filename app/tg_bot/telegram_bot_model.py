@@ -67,9 +67,10 @@ class TelegramBot:
                     n8n_url,
                     json=payload,
                     headers={"Content-Type": "application/json"},
-                    timeout=30.0
+                    timeout=300.0
                 )
                 response_data = response.json() if response.content else None
+                response_data = response[0]['output']
                 # response_data = {
                 #     "name":"Встреча с Васей",
                 #     "category_name": "Работа",
