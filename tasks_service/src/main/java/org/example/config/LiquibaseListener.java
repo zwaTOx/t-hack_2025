@@ -24,7 +24,7 @@ public class LiquibaseListener implements ServletContextListener {
         Map<String, Object> config = new HashMap<>();
         try {
             Class.forName("org.postgresql.Driver");
-            Connection connection = DriverManager.getConnection("jdbc:postgresql://localhost:5432/postgres",
+            Connection connection = DriverManager.getConnection("jdbc:postgresql://80.90.188.211:5432/postgres",
                 "postgres", "password");
             Scope.child(config, () -> {
                 Database database = DatabaseFactory
